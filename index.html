@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Tutorial Multi-Role Auth Laravel (Laravel UI &amp; Middleware)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f6f4ed;
+            color: #243d34;
+            font: 17px/1.75 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        main {
+            max-width: 940px;
+            margin: auto;
+            padding: 44px 24px;
+        }
+
+        a {
+            color: #17634d;
+        }
+
+        header {
+            border-bottom: 2px solid #243d34;
+            padding-bottom: 26px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font: normal clamp(32px, 5vw, 48px)/1.15 Georgia, serif;
+            margin: 10px 0;
+        }
+
+        h2 {
+            font: normal 26px Georgia, serif;
+            margin-top: 36px;
+            color: #17634d;
+        }
+
+        .eyebrow {
+            font-size: 12px;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: #17634d;
+            font-weight: 700;
+        }
+
+        .note {
+            background: #e5eee4;
+            padding: 18px 22px;
+            border-radius: 8px;
+            border-left: 5px solid #17634d;
+            margin-bottom: 24px;
+        }
+
+        .note b {
+            color: #17634d;
+            font-size: 1.1em;
+        }
+
+        pre {
+            background: #17382e;
+            color: #f2f6ef;
+            padding: 20px;
+            border-radius: 7px;
+            overflow: auto;
+            font: 14px/1.6 Consolas, Monaco, monospace;
+            max-height: 540px;
+        }
+
+        details {
+            border: 1px solid #d3dbcf;
+            background: #fffef9;
+            margin: 14px 0;
+            border-radius: 7px;
+            padding: 14px 18px;
+            transition: all 0.2s ease;
+        }
+
+        details[open] {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #243d34;
+            user-select: none;
+        }
+
+        summary:hover {
+            color: #17634d;
+        }
+
+        .step-badge {
+            display: inline-block;
+            background: #17634d;
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        li {
+            margin: 10px 0;
+        }
+
+        .code-title {
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+            color: #17634d;
+            font-weight: 700;
+            margin-top: 10px;
+            display: block;
+        }
+
+        footer {
+            font-size: 13px;
+            color: #637469;
+            margin-top: 40px;
+            border-top: 1px solid #d3dbcf;
+            padding-top: 20px;
+        }
+
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        a:focus-visible,
+        summary:focus-visible {
+            outline: 3px solid #b77c28;
+        }
+
+        @media(max-width: 600px) {
+            main {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <header>
+            <p class="eyebrow">Modul Praktik Laravel / Multi-Role Authentication</p>
+            <h1>Pengembangan Aplikasi Multi-Role.<br>Versi Laravel UI &amp; Middleware.</h1>
+            <p>Panduan lengkap step-by-step membuat autentikasi 2 role (Admin &amp; User) berbasis
+                <code>laravel/ui</code> Bootstrap, custom Middleware (<code>isAdmin</code> &amp; <code>isUser</code>),
+                Seeder, serta penyesuaian alur <code>redirectTo</code>.</p>
+        </header>
+
+
+        <h2>Daftar Langkah Praktikum</h2>
+
+<!-- Step 1-3 -->
+<details open>
+    <summary><span class="step-badge">LANGKAH 01-03</span> Inisialisasi Project, Setup .env &amp; Install Auth UI</summary>
+    <p>Jalankan perintah berikut di terminal untuk membuat project Laravel baru, mengonfigurasi database pada file <code>.env</code>, serta memasang paket autentikasi berbasis Bootstrap:</p>
+
+    <span class="code-title">1. Buat Project Baru &amp; Masuk ke Folder Project:</span>
+    <pre><code>composer create-project laravel/laravel multirole-app
+cd multirole-app</code></pre>
+
+    <span class="code-title">2. Konfigurasi Database di file .env:</span>
+    <p class="step-desc">Buka file <code>.env</code> dan sesuaikan konfigurasi database berikut (sesuaikan nama database dan password MySQL Anda):</p>
+    <pre><code>DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=multirole_app
+DB_USERNAME=root
+DB_PASSWORD=</code></pre>
+
+    <span class="code-title">3. Install Package Auth (Laravel UI) &amp; Frontend Dependency:</span>
+    <pre><code># Install package laravel/ui
+composer require laravel/ui
+
+# Generate auth scaffolding dengan Bootstrap
+php artisan ui bootstrap --auth
+
+# Install & compile dependency frontend
+npm install
+npm run dev</code></pre>
+</details>
+
+        <!-- Step 4 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 04</span> Ubah Migration User (Tambah Kolom Role)</summary>
+            <p>Buka file migrasi tabel users dan tambahkan kolom <code>enum</code> untuk membedakan hak akses
+                <code>admin</code> dan <code>user</code>.</p>
+            <span class="code-title">File: database/migrations/xxxx_xx_xx_xxxxxx_create_users_table.php</span>
+            <pre><code>public function up(): void
+{
+    Schema::create('users', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->string('email')->unique();
+        $table->timestamp('email_verified_at')->nullable();
+        $table->string('password');
+        
+        // Tambahkan kolom role di sini (default: user)
+        $table->enum('role', ['admin', 'user'])->default('user');
+        
+        $table->rememberToken();
+        $table->timestamps();
+    });
+}</code></pre>
+
+            <p>Jalankan migrationnya</p>
+            <span class="code-title">Terminal:</span>
+            <pre><code>php artisan migrate</code></pre>
+        </details>
+
+        <!-- Step 5 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 05</span> Tambah 'role' ke Model User</summary>
+            <p>Daftarkan atribut <code>role</code> ke dalam properti <code>$fillable</code> agar dapat diisi secara
+                massal (mass assignment).</p>
+            <span class="code-title">File: app/Models/User.php</span>
+            <pre><code>namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    use Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role', // Added role field
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+}</code></pre>
+        </details>
+
+        <!-- Step 6 & 7 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 06-07</span> Buat UserSeeder &amp; Run Database Seed</summary>
+            <p>Buat seeder untuk menyiapkan akun awal <b>Admin</b> dan <b>User</b> agar siap digunakan untuk pengujian
+                login.</p>
+            <span class="code-title">Terminal:</span>
+            <pre><code>php artisan make:seeder UserSeeder</code></pre>
+
+            <span class="code-title">File: database/seeders/UserSeeder.php</span>
+            <pre><code>namespace Database\Seeders;
+
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+
+class UserSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // Buat akun admin
+        User::create([
+            'name' => 'Administrator',
+            'email' => 'admin@gmail.com',
+            'password' => Hash::make('password123'),
+            'role' => 'admin'
+        ]);
+
+        // Buat akun user
+        User::create([
+            'name' => 'user',
+            'email' => 'user@gmail.com',
+            'password' => Hash::make('password123'),
+            'role' => 'user'
+        ]);
+    }
+}</code></pre>
+
+            <span class="code-title">File: database/seeders/DatabaseSeeder.php</span>
+            <pre><code>public function run(): void
+{
+    $this->call([
+        UserSeeder::class
+    ]);
+}</code></pre>
+
+            <p>Jalankan db seeder-nya:</p>
+            <span class="code-title">Terminal:</span>
+            <pre><code>php artisan db:seed</code></pre>
+        </details>
+
+        <!-- Step 8 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 08</span> Membuat Middleware (AdminMiddleware &amp;
+                UserMiddleware)</summary>
+            <p>Generate dua file middleware untuk memproteksi halaman khusus admin dan pengguna biasa.</p>
+            <span class="code-title">Terminal:</span>
+            <pre><code># Middleware Admin
+php artisan make:middleware AdminMiddleware
+
+# Middleware User
+php artisan make:middleware UserMiddleware</code></pre>
+        </details>
+
+        <!-- Step 9 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 09</span> Registrasi Alias Middleware di bootstrap/app.php
+            </summary>
+            <p>Daftarkan alias <code>isAdmin</code> dan <code>isUser</code> agar dapat dipanggil dengan mudah pada
+                route.</p>
+            <span class="code-title">File: bootstrap/app.php (Laravel 11 / 12)</span>
+            <pre><code>use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\UserMiddleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        // Registrasi alias middleware
+        $middleware->alias([
+            'isAdmin' => AdminMiddleware::class,
+            'isUser'  => UserMiddleware::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        //
+    })->create();</code></pre>
+        </details>
+
+        <!-- Step 10 & 11 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 10-11</span> Controller, View, &amp; Route setup</summary>
+            <p>Buat Controller serta file Blade View sederhana memanfaatkan <i>layout Bootstrap bawaan Laravel UI</i>
+                (<code>layouts.app</code>) agar tampilan langsung rapi dan sinkron.</p>
+
+            <span class="code-title">Terminal:</span>
+            <pre><code>php artisan make:controller AdminController
+php artisan make:controller UserController</code></pre>
+
+            <span class="code-title">File: app/Http/Controllers/AdminController.php</span>
+            <pre><code>namespace App\Http\Controllers;
+
+class AdminController extends Controller
+{
+    public function index()
+    {
+        return view('admin.index');
+    }
+}</code></pre>
+
+            <span class="code-title">File: app/Http/Controllers/UserController.php</span>
+            <pre><code>namespace App\Http\Controllers;
+
+class UserController extends Controller
+{
+    public function index()
+    {
+        return view('user.index');
+    }
+}</code></pre>
+
+            <p>Buat folder <code>admin</code> dan <code>user</code> di dalam <code>resources/views/</code>, lalu isi
+                file tampilan masing-masing:</p>
+
+            <span class="code-title">File: resources/views/admin/index.blade.php</span>
+            <pre><code>
+&lt;!DOCTYPE html>
+&lt;html lang=&quot;id&quot;>
+&lt;head>
+    &lt;meta charset=&quot;UTF-8&quot;>
+    &lt;title>Dashboard Admin&lt;/title>
+    &lt;style>
+        body { font-family: sans-serif; background: #f1f5f9; padding: 40px; color: #1e293b; }
+        .box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
+        .badge { background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .btn { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; margin-top: 20px; }
+    &lt;/style>
+&lt;/head>
+&lt;body>
+    &lt;div class=&quot;box&quot;>
+        &lt;h2>Panel Administrator&lt;/h2>
+        &lt;p>Selamat datang, &lt;strong>{{ Auth::user()->name }}&lt;/strong>!&lt;/p>
+        &lt;p>Role Anda: &lt;span class=&quot;badge&quot;>{{ Auth::user()->role }}&lt;/span>&lt;/p>
+        
+        &lt;form action=&quot;{{ route('logout') }}&quot; method=&quot;POST&quot;>
+            @csrf
+            &lt;button type=&quot;submit&quot; class=&quot;btn&quot;>Logout&lt;/button>
+        &lt;/form>
+    &lt;/div>
+&lt;/body>
+&lt;/html>
+            </code></pre>
+
+            <span class="code-title">File: resources/views/user/index.blade.php</span>
+            <pre><code>
+&lt;!DOCTYPE html>
+&lt;html lang=&quot;id&quot;>
+&lt;head>
+    &lt;meta charset=&quot;UTF-8&quot;>
+    &lt;title>Dashboard User&lt;/title>
+    &lt;style>
+        body { font-family: sans-serif; background: #f1f5f9; padding: 40px; color: #1e293b; }
+        .box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
+        .badge { background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .btn { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; margin-top: 20px; }
+    &lt;/style>
+&lt;/head>
+&lt;body>
+    &lt;div class=&quot;box&quot;>
+        &lt;h2>Panel User&lt;/h2>
+        &lt;p>Selamat datang, &lt;strong>{{ Auth::user()->name }}&lt;/strong>!&lt;/p>
+        &lt;p>Role Anda: &lt;span class=&quot;badge&quot;>{{ Auth::user()->role }}&lt;/span>&lt;/p>
+        
+        &lt;form action=&quot;{{ route('logout') }}&quot; method=&quot;POST&quot;>
+            @csrf
+            &lt;button type=&quot;submit&quot; class=&quot;btn&quot;>Logout&lt;/button>
+        &lt;/form>
+    &lt;/div>
+&lt;/body>
+&lt;/html>
+            </code></pre>
+
+            <span class="code-title">File: routes/web.php</span>
+            <pre><code>use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\UserController;
+
+Route::get('/', function () {
+    return view('welcome');
+});
+
+Auth::routes();
+
+// Route Halaman Admin (Dilindungi middleware isAdmin)
+Route::middleware(['auth', 'isAdmin'])->group(function () {
+    Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
+});
+
+// Route Halaman User (Dilindungi middleware isUser)
+Route::middleware(['auth', 'isUser'])->group(function () {
+    Route::get('/user', [UserController::class, 'index'])->name('user.index');
+});</code></pre>
+        </details>
+
+        <!-- Step 12 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 12</span> Isi Logika AdminMiddleware &amp; UserMiddleware
+            </summary>
+            <p>Lengkapi logika pemeriksaan status login serta verifikasi nilai role pada masing-masing middleware.</p>
+
+            <span class="code-title">File: app/Http/Middleware/UserMiddleware.php</span>
+            <pre><code>namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+
+class UserMiddleware
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        if (Auth::check()) {
+            if (Auth::user()->role == 'user') {
+                return $next($request);
+            } else {
+                return redirect('/');
+            }
+        } else {
+            return redirect('/login');
+        }
+    }
+}</code></pre>
+
+            <span class="code-title">File: app/Http/Middleware/AdminMiddleware.php</span>
+            <pre><code>namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+
+class AdminMiddleware
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        if (Auth::check()) {
+            if (Auth::user()->role == 'admin') {
+                return $next($request);
+            } else {
+                return redirect('/');
+            }
+        } else {
+            return redirect('/login');
+        }
+    }
+}</code></pre>
+        </details>
+
+        <!-- Step 13 -->
+        <details>
+            <summary><span class="step-badge">LANGKAH 13</span> Ubah LoginController (Redirection Logika Role)</summary>
+            <p>Sesuaikan method <code>redirectTo()</code> di <code>LoginController</code> agar pengguna diarahkan secara
+                otomatis ke halaman yang sesuai begitu selesai login.</p>
+            <span class="code-title">File: app/Http/Controllers/Auth/LoginController.php</span>
+            <pre><code>namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\Auth;
+
+class LoginController extends Controller
+{
+    use AuthenticatesUsers;
+
+    public function redirectTo()
+    {
+        if (Auth::user()->role == 'admin') {
+            return route('admin.index');
+        } elseif (Auth::user()->role == 'user') {
+            return route('user.index');
+        }
+        
+        return '/login';
+    }
+
+    public function __construct()
+    {
+        $this->middleware('guest')->except('logout');
+    }
+}</code></pre>
+        </details>
+
+        <h2>Pengujian Sistem</h2>
+        <div class="note">
+            <p><b>Akun untuk Uji Coba Login:</b></p>
+            <ul>
+                <li><b>Admin:</b> Email: <code>admin@gmail.com</code> | Password: <code>password123</code> &rarr;
+                    <i>Akan diarahkan ke /admin</i></li>
+                <li><b>User:</b> Email: <code>user@gmail.com</code> | Password: <code>password123</code> &rarr; <i>Akan
+                        diarahkan ke /user</i></li>
+            </ul>
+        </div>
+
+        <footer>
+            Modul Praktikum Multi-Role Authentication Laravel &bull; Dibuat untuk panduan praktis perkuliahan /
+            pelatihan Laravel.
+        </footer>
+    </main>
+</body>
+
+</html>
